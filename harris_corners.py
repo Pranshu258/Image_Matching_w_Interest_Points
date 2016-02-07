@@ -25,12 +25,15 @@ Iyy = Iy**2
 height = img.shape[0]
 width = img.shape[1]
 
+R = [[0 for r in range(width)] for c in range(height)]
+
 cornerList = []
 k = 0.04
 window_size = 5
 offset = window_size/2
-thresh = 1000000
+thresh = 100000
 
+# Creating the image with corners indicated as red points
 img = cv2.imread(filename, 0)
 newImg = img.copy()
 color_img = cv2.cvtColor(newImg, cv2.COLOR_GRAY2RGB)
@@ -47,9 +50,31 @@ for y in range(offset, height-offset):
 		det = (Sxx * Syy) - (Sxy**2)
 		trace = Sxx + Syy
 		r = det - k*(trace**2)
+		R[y][x] = r
 		if r > thresh:
 			cornerList.append([x, y, r])
-			color_img.itemset((y, x, 0), 0)
-			color_img.itemset((y, x, 1), 0)
-			color_img.itemset((y, x, 2), 255)
+
+print "Number of corners found: ", len(cornerList)
+
+print "Non Maximum Suppression ... "
+suppressed_cornerList = []
+for corner in cornerList:
+	x = corner[0]
+	y = corner[1]
+	r = corner[2]
+	if r > R[y+1][x+1]:
+		if r > R[y+1][x]:
+			if r > R[y+1][x-1]:
+				if r > R[y][x-1]:
+					if r > R[y][x+1]:
+						if r > R[y-1][x+1]:
+							if r > R[y-1][x]:
+								if r > R[y-1][x-1]:
+									suppressed_cornerList.append(corner)
+									color_img.itemset((y, x, 0), 0)
+									color_img.itemset((y, x, 1), 0)
+									color_img.itemset((y, x, 2), 255)
+
+print "Number of corners after Suppression: ", len(suppressed_cornerList)
+
 cv2.imwrite("finalimage.png", color_img)
