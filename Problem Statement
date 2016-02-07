@@ -1,0 +1,5 @@
+In this assignment you will be implementing an interest point based matching algorithm. The algorithm you will implement will have three steps as follows:
+A interest point detection step based on Harris corner detector.
+A interest point descriptor using 16 histograms of gradients for the 16 sub regions (4 by 4) of the patch. You will experiment with different patch sizes in this step.
+A matching step based on sum of squared distances (SSD) between the different interest points in the given pair of images (data given below)
+Dataset to be used consists of pair of images given in the directory over here.
