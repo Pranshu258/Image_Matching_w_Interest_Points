@@ -13,7 +13,7 @@ import math
 k = 0.04
 window_size = 5
 offset = window_size/2
-threshold = 100000
+threshold = 1000000
 filename = ""
 
 if len(sys.argv) == 2:
@@ -27,7 +27,7 @@ def harris_corners(img, filename):
 	# Gradients in y and x direction, [columns reprsent the x and rows represent the y]
 	Iy, Ix = np.gradient(np.array(img, dtype=np.float))
 	Ixx = Ix*Ix
-	Ixy = Iy*Iy
+	Ixy = Ix*Iy
 	Iyy = Iy*Iy
 	height = img.shape[0]
 	width = img.shape[1]
@@ -93,6 +93,8 @@ file2 = "img/set" + test_set + "/img2.png"
 print "Loading : [", file2, "]"
 img2 = Image.open(file2).convert('L')
 img2 = np.array(img2)
+if test_set == '3':
+	threshold = threshold/100
 print "Finding Harris Corners ... "
 harris_image2, corners2 = harris_corners(img2, file2)
 cv2.imwrite("img/set" + test_set + "/img2_corners.png", harris_image2)
