@@ -29,8 +29,7 @@ def harris_corners(img, filename):
 	Ixx = Ix*Ix
 	Ixy = Ix*Iy
 	Iyy = Iy*Iy
-	height = img.shape[0]
-	width = img.shape[1]
+	height, width = img1.shape
 
 	R = [[0 for r in range(width)] for c in range(height)]
 	cornerList = []
@@ -57,11 +56,11 @@ def harris_corners(img, filename):
 			if r > threshold:
 				cornerList.append([x, y, r])
 	# print "Number of corners found: ", len(cornerList)
-	# print "Non Maximum Suppression ... "
+	print "Applying Non Maximum Suppression"
 	for corner in cornerList:
-		x = corner[0]
-		y = corner[1]
-		r = corner[2]
+		x, y, r = corner[0], corner[1], corner[2]
+		if not (x >= 8 and y >= 8 and y < height-8 and x < width-8):
+			continue
 		if r > R[y+1][x+1]:
 			if r > R[y+1][x]:
 				if r > R[y+1][x-1]:
@@ -77,6 +76,36 @@ def harris_corners(img, filename):
 	# print "Number of corners after Suppression: ", len(suppressed_cornerList)
 	return color_img, suppressed_cornerList
 
+# This function returns the SIFT feature descriptor for each corner as a numpy array
+def getFeatures(img, corners):
+	features = [[[0 for j in range(8)] for K in range(16)] for i in range(len(corners))]
+	Iy, Ix = np.gradient(np.array(img, dtype=np.float))
+	height, width = img.shape
+	count = 0
+	for corner in corners:
+		x, y = corner[0], corner[1]
+		offy = -8
+		for i in range(4):
+			offx = -8
+			for j in range(4):
+				# Get the 4x4 patch
+				patchIx = Ix[y+offy:y+offy+4, x+offx:x+offx+4].flatten()
+				patchIy = Iy[y+offy:y+offy+4, x+offx:x+offx+4].flatten()
+				# Calculate the 8 bit histogram
+				thetas, weightList = [], []
+				for K in range(16):
+					thetas.append(math.degrees(math.atan2(patchIy[K]-Iy[y][x],patchIx[K]-Ix[y][x])))
+					weightList.append(np.linalg.norm(np.array([patchIy[K]-Iy[y][x],patchIx[K]-Ix[y][x]])))
+				features[count][i*4 + j] = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180], weights=weightList)
+				# Move to the next patch
+				offx = offx + 4
+			offy = offy + 4
+		count = count + 1
+	return (np.array(features))[:,:,0]
+
+
+
+
 ###################################################################################################
 
 # Find out the corners for the first image
@@ -84,7 +113,8 @@ file1 = "img/set" + test_set + "/img1.png"
 print "Loading : [", file1, "]"
 img1 = Image.open(file1).convert('L')
 img1 = np.array(img1)
-print "Finding Harris Corners ... "
+
+print "Finding Harris Corners"
 harris_image1, corners1 = harris_corners(img1, file1)
 cv2.imwrite("img/set" + test_set + "/img1_corners.png", harris_image1)
 
@@ -95,94 +125,13 @@ img2 = Image.open(file2).convert('L')
 img2 = np.array(img2)
 if test_set == '3':
 	threshold = threshold/100
-print "Finding Harris Corners ... "
+
+print "Finding Harris Corners"
 harris_image2, corners2 = harris_corners(img2, file2)
 cv2.imwrite("img/set" + test_set + "/img2_corners.png", harris_image2)
 
-# Generate the descriptors for each corner in the first image
-offset = 8
-Iy, Ix = np.gradient(np.array(img1, dtype=np.float))
-features1 = [[] for i in range(len(corners1))]
-for i in range(len(corners1)):
-	x = corners1[i][0]
-	y = corners1[i][1]
-	# Getting the histogram for the first patch
-	windowIx = Ix[y:y+offset, x:x+offset].flatten()
-	windowIy = Iy[y:y+offset, x:x+offset].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features1[i].append(hist)
-	# Getting the histogram for the second patch
-	windowIx = Ix[y:y+offset, x-offset:x].flatten()
-	windowIy = Iy[y:y+offset, x-offset:x].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features1[i].append(hist)
-	# Getting the histogram for the third patch
-	windowIx = Ix[y-offset:y, x-offset:x].flatten()
-	windowIy = Iy[y-offset:y, x-offset:x].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features1[i].append(hist)
-	# Getting the histogram for the fourth patch
-	windowIx = Ix[y-offset:y, x:x+offset].flatten()
-	windowIy = Iy[y-offset:y, x:x+offset].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features1[i].append(hist)
-features1 = np.array(features1)
+print "Extracting features for img1"
+features1 = getFeatures(img1, corners1)
 
-Iy, Ix = np.gradient(np.array(img2, dtype=np.float))
-features2 = [[] for i in range(len(corners2))]
-for i in range(len(corners2)):
-	x = corners2[i][0]
-	y = corners2[i][1]
-	# Getting the histogram for the first patch
-	windowIx = Ix[y:y+offset, x:x+offset].flatten()
-	windowIy = Iy[y:y+offset, x:x+offset].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features2[i].append(hist)
-	# Getting the histogram for the second patch
-	windowIx = Ix[y:y+offset, x-offset:x].flatten()
-	windowIy = Iy[y:y+offset, x-offset:x].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features2[i].append(hist)
-	# Getting the histogram for the third patch
-	windowIx = Ix[y-offset:y, x-offset:x].flatten()
-	windowIy = Iy[y-offset:y, x-offset:x].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features2[i].append(hist)
-	# Getting the histogram for the fourth patch
-	windowIx = Ix[y-offset:y, x:x+offset].flatten()
-	windowIy = Iy[y-offset:y, x:x+offset].flatten()
-	thetas = []
-	n = len(windowIx)
-	for j in range(n):
-		thetas.append(math.degrees(math.atan2(windowIy[j],windowIx[j])))
-	hist = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180])
-	features2[i].append(hist)
-features2 = np.array(features2)
+print "Extracting features for img2"
+features2 = getFeatures(img2, corners2)
