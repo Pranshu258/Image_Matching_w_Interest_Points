@@ -55,8 +55,8 @@ def harris_corners(img, filename):
 			R[y][x] = r
 			if r > threshold:
 				cornerList.append([x, y, r])
-	# print "Number of corners found: ", len(cornerList)
-	print "Applying Non Maximum Suppression"
+	print "Number of corners found: ", len(cornerList)
+	print "Applying Non Maximum Suppression ... "
 	for corner in cornerList:
 		x, y, r = corner[0], corner[1], corner[2]
 		if not (x >= 8 and y >= 8 and y < height-8 and x < width-8):
@@ -73,7 +73,7 @@ def harris_corners(img, filename):
 										color_img.itemset((y, x, 0), 0)
 										color_img.itemset((y, x, 1), 0)
 										color_img.itemset((y, x, 2), 255)
-	# print "Number of corners after Suppression: ", len(suppressed_cornerList)
+	print "Number of corners after Suppression: ", len(suppressed_cornerList)
 	return color_img, suppressed_cornerList
 
 # This function returns the SIFT feature descriptor for each corner as a numpy array
@@ -104,8 +104,6 @@ def getFeatures(img, corners):
 	return (np.array(features))[:,:,0]
 
 
-
-
 ###################################################################################################
 
 # Find out the corners for the first image
@@ -114,9 +112,12 @@ print "Loading : [", file1, "]"
 img1 = Image.open(file1).convert('L')
 img1 = np.array(img1)
 
-print "Finding Harris Corners"
+print "Finding Harris Corners ... "
 harris_image1, corners1 = harris_corners(img1, file1)
 cv2.imwrite("img/set" + test_set + "/img1_corners.png", harris_image1)
+
+print "Constructing SIFT feature descriptors ... "
+features1 = getFeatures(img1, corners1)
 
 # Find out the corners for the first image
 file2 = "img/set" + test_set + "/img2.png"
@@ -126,12 +127,12 @@ img2 = np.array(img2)
 if test_set == '3':
 	threshold = threshold/100
 
-print "Finding Harris Corners"
+print "Finding Harris Corners ... "
 harris_image2, corners2 = harris_corners(img2, file2)
 cv2.imwrite("img/set" + test_set + "/img2_corners.png", harris_image2)
 
-print "Extracting features for img1"
-features1 = getFeatures(img1, corners1)
-
-print "Extracting features for img2"
+print "Constructing SIFT feature descriptors ... "
 features2 = getFeatures(img2, corners2)
+
+# Image matching starts here
+#----------------------------------------------------------------------------------------------
