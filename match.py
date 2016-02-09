@@ -96,6 +96,7 @@ def getFeatures(img, corners):
 				for K in range(16):
 					thetas.append(math.degrees(math.atan2(patchIy[K]-Iy[y][x],patchIx[K]-Ix[y][x])))
 					weightList.append(np.linalg.norm(np.array([patchIy[K]-Iy[y][x],patchIx[K]-Ix[y][x]])))
+				weightList = weightList/np.sum(weightList)
 				features[count][i*4 + j] = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180], weights=weightList)
 				# Move to the next patch
 				offx = offx + 4
@@ -107,6 +108,7 @@ def getFeatures(img, corners):
 ###################################################################################################
 
 # Find out the corners for the first image
+print "-------------------------------------------------"
 file1 = "img/set" + test_set + "/img1.png"
 print "Loading : [", file1, "]"
 img1 = Image.open(file1).convert('L')
@@ -118,14 +120,15 @@ cv2.imwrite("img/set" + test_set + "/img1_corners.png", harris_image1)
 
 print "Constructing SIFT feature descriptors ... "
 features1 = getFeatures(img1, corners1)
+print "-------------------------------------------------"
 
-# Find out the corners for the first image
+# Find out the corners for the second image
 file2 = "img/set" + test_set + "/img2.png"
 print "Loading : [", file2, "]"
 img2 = Image.open(file2).convert('L')
 img2 = np.array(img2)
 if test_set == '3':
-	threshold = threshold/100
+	threshold = threshold/400
 
 print "Finding Harris Corners ... "
 harris_image2, corners2 = harris_corners(img2, file2)
@@ -133,6 +136,26 @@ cv2.imwrite("img/set" + test_set + "/img2_corners.png", harris_image2)
 
 print "Constructing SIFT feature descriptors ... "
 features2 = getFeatures(img2, corners2)
+print "-------------------------------------------------"
 
 # Image matching starts here
-#----------------------------------------------------------------------------------------------
+###################################################################################################
+for i in range(len(features1)):
+	D1 = 100.0
+	D2 = 100.0
+	match1, match2 = -1, -1
+	for j in range(len(features2)):
+		d = 0
+		# Calculate the distance between the descriptors
+		for r in range(16):
+			d = d + np.linalg.norm(features2[j][r]-features1[i][r])/16.0
+		if D1 > d:
+			D2 = D1
+			D1 = d
+			match2 = match1
+			match1 = j
+		elif D2 > d:
+			D2 = d
+			match2 = j
+	if D1/D2 < 0.9:
+		print corners1[i][:2], corners2[match1][:2], D1
