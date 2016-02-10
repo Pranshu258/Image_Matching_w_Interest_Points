@@ -7,6 +7,7 @@ import numpy as np
 import cv2
 import sys
 import math
+from sklearn.neighbors import NearestNeighbors
 
 ###################################################################################################
 # Configuration variables
@@ -16,8 +17,9 @@ offset = window_size/2
 threshold = 1000000
 filename = ""
 
-if len(sys.argv) == 2:
+if len(sys.argv) == 3:
 	test_set = str(sys.argv[1])
+	print_thresh = float(sys.argv[2])
 else:
 	exit()
 
@@ -95,14 +97,19 @@ def getFeatures(img, corners):
 				thetas, weightList = [], []
 				for K in range(16):
 					thetas.append(math.degrees(math.atan2(patchIy[K],patchIx[K])))
-					weightList.append(np.linalg.norm(np.array([patchIy[K],patchIx[K]])))
+					weightList.append(np.linalg.norm(np.array([patchIy[K],patchIx[K]]))+1)
 				weightList = weightList/np.sum(weightList)
 				features[count][i*4 + j] = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180], weights=weightList)
 				# Move to the next patch
 				offx = offx + 4
 			offy = offy + 4
 		count = count + 1
-	return (np.array(features))[:,:,0]
+	features = np.array(features)[:,:,0]
+	vector = []
+	for i in range(len(features)):
+		vector.append(np.array(features[i].tolist()).flatten())
+	vector = np.array(vector)
+	return vector	
 
 
 ###################################################################################################
@@ -140,21 +147,64 @@ print "-------------------------------------------------"
 
 # Image matching starts here
 ###################################################################################################
+# mapping = []
+# distances = []
+# ratios = []
+# for i in range(len(features1)):
+# 	D1 = 1000.0
+# 	D2 = 1000.0
+# 	match1, match2 = -1, -1
+# 	for j in range(len(features2)): 
+# 		d = np.linalg.norm(features2[j] - features1[i])
+# 		if D1 > d:
+# 			D2 = D1
+# 			D1 = d
+# 			match2 = match1
+# 			match1 = j
+# 		elif D2 > d:
+# 			D2 = d
+# 			match2 = j
+# 	print corners1[i][:2], corners2[match1][:2], D1
+# 	mapping.append(corners2[match1][:2])
+# 	distances.append(D1)
+# 	ratios.append(D1/D2)
+
 mapping = []
-for i in range(len(features1)):
-	vector1 = np.array(features1[i].tolist()).flatten()
-	D1 = 1000.0
-	D2 = 1000.0
-	match1, match2 = -1, -1
-	for j in range(len(features2)): 
-		vector2 = np.array(features2[j].tolist()).flatten()
-		d = np.linalg.norm(vector2 - vector1)
-		if D1 > d:
-			D2 = D1
-			D1 = d
-			match2 = match1
-			match1 = j
-		elif D2 > d:
-			D2 = d
-			match2 = j
-	print corners1[i][:2], corners2[match1][:2], D1, D1/D2
+source = []
+nbrs = NearestNeighbors(n_neighbors=1)
+nbrs.fit(features2)
+distances, indices = nbrs.kneighbors(features1, n_neighbors=1)
+
+j = 0
+for ind in indices:
+	i = ind[0]
+	if distances[j] < print_thresh:
+		mapping.append(corners2[i][:2])
+		source.append(corners1[j][:2])
+		print corners1[j][:2], corners2[i][:2], distances[j]
+	j = j + 1
+
+# Draw the side by side image of the matching using cv module
+###################################################################################################
+img1 = cv2.imread("img/set" + test_set + "/img1.png")
+img2 = cv2.imread("img/set" + test_set + "/img2.png")
+h1, w1 = img1.shape[:2]
+h2, w2 = img2.shape[:2]
+nWidth = w1 + w2
+nHeight = max(h1, h2)
+hdif = (h1-h2)/2
+
+# Creating the new template image
+newimg = np.zeros((nHeight, nWidth, 3), np.uint8)
+newimg[hdif:hdif+h2, :w2] = img1
+newimg[:h1, w2:w1+w2] = img2
+
+tkp = source
+skp = mapping
+
+for i in range(min(len(tkp), len(skp))):
+	pt_a = (int(tkp[i][0]), int(tkp[i][1]+hdif))
+	pt_b = (int(skp[i][0]+w2), int(skp[i][1]))
+	cv2.line(newimg, pt_a, pt_b, (255, 0, 0))
+
+cv2.imwrite("img/set" + test_set + "/img2_result.png", newimg)
