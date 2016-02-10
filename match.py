@@ -94,8 +94,8 @@ def getFeatures(img, corners):
 				# Calculate the 8 bit histogram
 				thetas, weightList = [], []
 				for K in range(16):
-					thetas.append(math.degrees(math.atan2(patchIy[K]-Iy[y][x],patchIx[K]-Ix[y][x])))
-					weightList.append(np.linalg.norm(np.array([patchIy[K]-Iy[y][x],patchIx[K]-Ix[y][x]])))
+					thetas.append(math.degrees(math.atan2(patchIy[K],patchIx[K])))
+					weightList.append(np.linalg.norm(np.array([patchIy[K],patchIx[K]])))
 				weightList = weightList/np.sum(weightList)
 				features[count][i*4 + j] = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180], weights=weightList)
 				# Move to the next patch
@@ -140,15 +140,15 @@ print "-------------------------------------------------"
 
 # Image matching starts here
 ###################################################################################################
+mapping = []
 for i in range(len(features1)):
-	D1 = 100.0
-	D2 = 100.0
+	vector1 = np.array(features1[i].tolist()).flatten()
+	D1 = 1000.0
+	D2 = 1000.0
 	match1, match2 = -1, -1
-	for j in range(len(features2)):
-		d = 0
-		# Calculate the distance between the descriptors
-		for r in range(16):
-			d = d + np.linalg.norm(features2[j][r]-features1[i][r])/16.0
+	for j in range(len(features2)): 
+		vector2 = np.array(features2[j].tolist()).flatten()
+		d = np.linalg.norm(vector2 - vector1)
 		if D1 > d:
 			D2 = D1
 			D1 = d
@@ -157,5 +157,4 @@ for i in range(len(features1)):
 		elif D2 > d:
 			D2 = d
 			match2 = j
-	if D1/D2 < 0.9:
-		print corners1[i][:2], corners2[match1][:2], D1
+	print corners1[i][:2], corners2[match1][:2], D1, D1/D2
