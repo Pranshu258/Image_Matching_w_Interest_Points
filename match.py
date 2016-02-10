@@ -17,11 +17,15 @@ offset = window_size/2
 threshold = 1000000
 filename = ""
 
-if len(sys.argv) == 3:
+
+if len(sys.argv) == 4:
 	test_set = str(sys.argv[1])
 	print_thresh = float(sys.argv[2])
+	factor = int(sys.argv[3])
 else:
 	exit()
+
+patchSize = 16*factor
 
 ###################################################################################################
 # This function returns the harris corners in the image
@@ -61,7 +65,7 @@ def harris_corners(img, filename):
 	print "Applying Non Maximum Suppression ... "
 	for corner in cornerList:
 		x, y, r = corner[0], corner[1], corner[2]
-		if not (x >= 8 and y >= 8 and y < height-8 and x < width-8):
+		if not (x >= 8*factor and y >= 8*factor and y < height-8*factor and x < width-8*factor):
 			continue
 		if r > R[y+1][x+1]:
 			if r > R[y+1][x]:
@@ -86,13 +90,13 @@ def getFeatures(img, corners):
 	count = 0
 	for corner in corners:
 		x, y = corner[0], corner[1]
-		offy = -8
+		offy = -8*factor
 		for i in range(4):
-			offx = -8
+			offx = -8*factor
 			for j in range(4):
 				# Get the 4x4 patch
-				patchIx = Ix[y+offy:y+offy+4, x+offx:x+offx+4].flatten()
-				patchIy = Iy[y+offy:y+offy+4, x+offx:x+offx+4].flatten()
+				patchIx = Ix[y+offy:y+offy+4*factor, x+offx:x+offx+4*factor].flatten()
+				patchIy = Iy[y+offy:y+offy+4*factor, x+offx:x+offx+4*factor].flatten()
 				# Calculate the 8 bit histogram
 				thetas, weightList = [], []
 				for K in range(16):
@@ -101,8 +105,8 @@ def getFeatures(img, corners):
 				weightList = weightList/np.sum(weightList)
 				features[count][i*4 + j] = np.histogram(thetas, bins=[-180, -135, -90, -45, 0, 45, 90, 135, 180], weights=weightList)
 				# Move to the next patch
-				offx = offx + 4
-			offy = offy + 4
+				offx = offx + 4*factor
+			offy = offy + 4*factor
 		count = count + 1
 	features = np.array(features)[:,:,0]
 	vector = []
@@ -193,18 +197,15 @@ h2, w2 = img2.shape[:2]
 nWidth = w1 + w2
 nHeight = max(h1, h2)
 hdif = (h1-h2)/2
-
 # Creating the new template image
 newimg = np.zeros((nHeight, nWidth, 3), np.uint8)
 newimg[hdif:hdif+h2, :w2] = img1
 newimg[:h1, w2:w1+w2] = img2
-
+# Plotting lines for matches in the image
 tkp = source
 skp = mapping
-
 for i in range(min(len(tkp), len(skp))):
 	pt_a = (int(tkp[i][0]), int(tkp[i][1]+hdif))
 	pt_b = (int(skp[i][0]+w2), int(skp[i][1]))
 	cv2.line(newimg, pt_a, pt_b, (255, 0, 0))
-
-cv2.imwrite("img/set" + test_set + "/img2_result.png", newimg)
+cv2.imwrite("img/set" + test_set + "/img2_result_" + str(patchSize) + ".png", newimg)
