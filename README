@@ -1,4 +1,116 @@
 INTEREST POINT BASED IMAGE MATCHING
-===================================================================================
+===============================================================================
 By Pranshu Gupta, Abhishek Jain
 
+Description of Implementation
+*******************************************************************************
+
+Harris Corner Detection
+-------------------------------------------------------------------------------
+We use the Harris Formula to find out if a point in the 
+image is a possible corner or not.
+
+		r = det - k*(trace**2)
+
+Here, det and trace is the determinant and trace of the Harris 
+Matrix for the 5x5 pixel window around the given point and 'k' 
+is the standard Harris constant which is equal to 0.04.
+We have taken the threshold for the value of 'r', so that the 
+point is considered to be a Harris Corner as 1000000.
+
+The function 'harris_corners' returns the list of positions [x,y] 
+of the Harris Corners in image along with there 'r' values.
+
+Non Maximum Supression
+-------------------------------------------------------------------------------
+We have also implemented Non-Maximum Suppression in the function 
+'harris_corners', so that ONLY those points which have the maximum 
+'r' value in their 3x3 window are returned as harris corners.
+
+[We have deliberately put the constraint that the 'r' value of the 
+point MUST be GREATER than the same for EACH of 8 neighbors in its 
+3x3 window. This can cause loss of some Harris Corners, if the image 
+is very simple, something like a checker board for example, with no 
+noise. To deal such cases, the comparison operator can be replaced 
+by '>=', but since we are not dealing with simple images we are 
+putting this hard comparison.]
+
+Inteterest Point Descriptor
+-------------------------------------------------------------------------------
+We extract the feature descriptor for each of the harris corners 
+found in step one. The feature descriptor is a list of 16 histograms. 
+Each histogram corresponds to one of the 16 partitions of the window 
+around the harris corner. The minimum size of this window is set to 
+be 16x16 in our implementation. However, this size can be changed by 
+supplying a multiplying factor from the command line. This factor 
+must be an integer greater than or equal to one.
+
+Note that this window size affects the quality of results. 
+Usually bigger window size gives better results.
+
+The histogram is calculated as a weighted count of the gradient 
+angles of pixels in the corresponding partition. The weights are 
+the magnitudes of the gradient vector. The final value of histogram 
+is normalized to incorporate the scaling (if any) in the images.
+
+The function 'getFeatures' implements this and returns the feature 
+list for all the corners in the image.
+
+Image Matching
+-------------------------------------------------------------------------------
+For each corner in first image we find its nearest neighbor in the 
+second image. The distance metric applied in this calculation is the 
+euclidean norm of the difference of flattened feature descriptors 
+(which will be 128 byte vectors) and thresholding the distance to a 
+value which can be provided by the user from the command line.
+
+A match that does not satisfy the threshold is discarded and the 
+corresponding corner is left unmatched.
+
+Output of the application
+-------------------------------------------------------------------------------
+We show the results by constructing a side by side veiw of the 
+matching points connecting them with straight lines.
+
+RESULTS
+*******************************************************************************
+
+Set1
+-------------------------------------------------------------------------------
+This set is the most difficult in terms of image matching because the images in 
+this set have different camera angles as well as camera zoom level. This causes 
+a large number of mismatches even in bigger descriptor patch sizes such as 48x48.
+
+In this case there are always a large number of mismatches. However, at patch size
+48x48 we start getting correct matching for SOME parts of the image.
+
+Set2
+-------------------------------------------------------------------------------
+The descriptor window size at which we start getting good matching: 16x16
+
+This set has the second image in slightly worse lighting conditions, however the
+camera angle and the zoom level are the same, so we start getting VERY GOOD results 
+at 16x16 patch size only.
+
+Set3
+-------------------------------------------------------------------------------
+The descriptor window size at which we start getting good matching: 48x48, 64x64
+
+This set has the second image heavily blurred, so the threshold for finding the 
+harris corners was also relaxed about 100 times as compared to first image of 
+set. The descriptor is also required to be more elaborate (bigger patch size)
+in order to get satisfactory matching.
+
+
+USAGE NOTES
+------------------------------------------------------------------------------
+python match.py set_number patch_size_factor matching_threshold
+
+set_number 						[1, 2, 3, ...]
+patch_size_factor				[1, 2, 3, ...]
+matching_threshold				[ > 0] depends on the image set
+
+
+==============================================================================
+***This is a python2 program
+==============================================================================

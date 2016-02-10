@@ -7,7 +7,6 @@ import numpy as np
 import cv2
 import sys
 import math
-from sklearn.neighbors import NearestNeighbors
 
 ###################################################################################################
 # Configuration variables
@@ -20,8 +19,8 @@ filename = ""
 
 if len(sys.argv) == 4:
 	test_set = str(sys.argv[1])
-	print_thresh = float(sys.argv[2])
-	factor = int(sys.argv[3])
+	factor = int(sys.argv[2])
+	print_thresh = float(sys.argv[3])
 else:
 	exit()
 
@@ -151,42 +150,33 @@ print "-------------------------------------------------"
 
 # Image matching starts here
 ###################################################################################################
-# mapping = []
-# distances = []
-# ratios = []
-# for i in range(len(features1)):
-# 	D1 = 1000.0
-# 	D2 = 1000.0
-# 	match1, match2 = -1, -1
-# 	for j in range(len(features2)): 
-# 		d = np.linalg.norm(features2[j] - features1[i])
-# 		if D1 > d:
-# 			D2 = D1
-# 			D1 = d
-# 			match2 = match1
-# 			match1 = j
-# 		elif D2 > d:
-# 			D2 = d
-# 			match2 = j
-# 	print corners1[i][:2], corners2[match1][:2], D1
-# 	mapping.append(corners2[match1][:2])
-# 	distances.append(D1)
-# 	ratios.append(D1/D2)
 
+# CRUDE IMPLEMENTATION OF MATCHING THE FEATURES
 mapping = []
 source = []
-nbrs = NearestNeighbors(n_neighbors=1)
-nbrs.fit(features2)
-distances, indices = nbrs.kneighbors(features1, n_neighbors=1)
+distances = []
+ratios = []
+for i in range(len(features1)):
+	D1 = 1000.0
+	D2 = 1000.0
+	match1, match2 = -1, -1
+	for j in range(len(features2)): 
+		d = np.linalg.norm(features2[j] - features1[i])
+		if D1 > d:
+			D2 = D1
+			D1 = d
+			match2 = match1
+			match1 = j
+		elif D2 > d:
+			D2 = d
+			match2 = j
+	if D1 < print_thresh:
+		print corners1[i][:2], corners2[match1][:2], D1
+		source.append(corners1[i][:2])
+		mapping.append(corners2[match1][:2])
+		distances.append(D1)
+		ratios.append(D1/D2)
 
-j = 0
-for ind in indices:
-	i = ind[0]
-	if distances[j] < print_thresh:
-		mapping.append(corners2[i][:2])
-		source.append(corners1[j][:2])
-		print corners1[j][:2], corners2[i][:2], distances[j]
-	j = j + 1
 
 # Draw the side by side image of the matching using cv module
 ###################################################################################################
@@ -208,4 +198,5 @@ for i in range(min(len(tkp), len(skp))):
 	pt_a = (int(tkp[i][0]), int(tkp[i][1]+hdif))
 	pt_b = (int(skp[i][0]+w2), int(skp[i][1]))
 	cv2.line(newimg, pt_a, pt_b, (255, 0, 0))
-cv2.imwrite("img/set" + test_set + "/img2_result_" + str(patchSize) + ".png", newimg)
+cv2.imwrite("img/set" + test_set + "/img2_result_" + str(patchSize) + "_" + str(print_thresh) + ".png", newimg)
+
